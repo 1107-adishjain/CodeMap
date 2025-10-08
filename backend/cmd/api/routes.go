@@ -33,6 +33,7 @@ func (app *application) routes() http.Handler {
 		r.Post("/github", app.githubHandler)
 		r.Post("/analyze-local", app.analyzeLocalHandler)
 		r.Post("/query", app.queryHandler)
+		r.Get("/debug/neo4j", app.debugNeo4jHandler)
 	})
 
 	return r

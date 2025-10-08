@@ -60,13 +60,14 @@ func (s *Service) UploadZipFile(zipData []byte, filename string) (string, error)
 }
 
 // UploadGitRepo clones a GitHub repo and uploads it as a zip to S3
-func (s *Service) UploadGitRepo(repoURL string) (string, error) {
+// Returns: (s3Key, tempDirPath, error) - caller must clean up tempDirPath
+func (s *Service) UploadGitRepo(repoURL string) (string, string, error) {
 	// Create temp directory for cloning
 	tempDir, err := os.MkdirTemp("", "git-clone-*")
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp dir: %w", err)
+		return "", "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	// NOTE: No defer cleanup - caller must handle cleanup
 
 	// Extract repo name from URL
 	repoName := extractRepoName(repoURL)
@@ -75,19 +76,19 @@ func (s *Service) UploadGitRepo(repoURL string) (string, error) {
 	// Clone the repository
 	cmd := exec.Command("git", "clone", repoURL, cloneDir)
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to clone repository: %w", err)
+		return "", "", fmt.Errorf("failed to clone repository: %w", err)
 	}
 
 	// Create zip file
 	zipPath := filepath.Join(tempDir, repoName+".zip")
 	if err := createZipFromDir(cloneDir, zipPath); err != nil {
-		return "", fmt.Errorf("failed to create zip: %w", err)
+		return "", "", fmt.Errorf("failed to create zip: %w", err)
 	}
 
 	// Read zip file
 	zipData, err := os.ReadFile(zipPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read zip file: %w", err)
+		return "", "", fmt.Errorf("failed to read zip file: %w", err)
 	}
 
 	// Upload to S3
@@ -102,10 +103,11 @@ func (s *Service) UploadGitRepo(repoURL string) (string, error) {
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to upload git repo to S3: %w", err)
+		return "", "", fmt.Errorf("failed to upload git repo to S3: %w", err)
 	}
 
-	return key, nil
+	// Return S3 key and clone directory path (caller must cleanup tempDir)
+	return key, cloneDir, nil
 }
 
 // extractRepoName extracts repository name from GitHub URL

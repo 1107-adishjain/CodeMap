@@ -24,6 +24,7 @@ try {
   console.log(JSON.stringify(finalOutput, null, 2));
 
 } catch (error) {
-  console.error(`Error during analysis: ${error.message}`);
+  console.error(`NODE.JS ANALYZER ERROR: ${error.message}`);
+  console.error(`STACK TRACE: ${error.stack}`);
   process.exit(1);
 }
