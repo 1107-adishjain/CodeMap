@@ -1,12 +1,9 @@
 const Parser = require('tree-sitter');
 const fs = require('fs');
 const path = require('path');
-const { languageConfig, ignoreExtensions } = require('./language');
+const { languageConfig, ignoreExtensions, ignoreDirs } = require('./language');
 
 const parser = new Parser();
-
-// --- Centralized list of directories to completely ignore ---
-const ignoreDirs = new Set(['.git', 'node_modules', 'temp-uploads', 'temp-clones']);
 
 function analyzeFile(filePath) {
     const extension = path.extname(filePath);
@@ -20,7 +17,7 @@ function analyzeFile(filePath) {
 
     // Skip files for which we have no defined language configuration
     if (!config) {
-        console.log(`[Processor] Skipping unsupported file type: ${filePath}`);
+        // Silently skip unsupported files to keep output clean
         return null;
     }
 
@@ -36,18 +33,9 @@ function analyzeFile(filePath) {
             ...analysis,
         };
     } catch (err) {
-        // --- Enhanced Error Handling ---
-        // Specifically check for the known parser incompatibility error
-        if (err.message && err.message.includes('Invalid language object')) {
-            console.error(`[Processor CRITICAL] The parser for ${extension} is incompatible. Skipping file: ${filePath}`);
-        } else {
-            console.error(`[Processor] Failed to parse ${filePath}. Error: ${err.message}`);
-        }
-        // Return a structured error object for the final report
-        return {
-            path: filePath,
-            error: `Failed to parse file due to an internal parser error.`,
-        };
+        // Silently skip files that can't be parsed to keep JSON output clean
+        // Don't return error objects as they clutter the results
+        return null;
     }
 }
 
@@ -58,8 +46,8 @@ function analyzeDirectory(directoryPath) {
     try {
         items = fs.readdirSync(directoryPath);
     } catch (err) {
-        console.error(`[Processor] Could not read directory: ${directoryPath}. Skipping.`);
-        return []; // Return empty array if directory is inaccessible
+        // Silently skip inaccessible directories
+        return [];
     }
 
     for (const item of items) {
@@ -74,7 +62,7 @@ function analyzeDirectory(directoryPath) {
         try {
             stat = fs.statSync(itemPath);
         } catch (err) {
-            console.error(`[Processor] Could not access item stats: ${itemPath}. Skipping.`);
+            // Silently skip inaccessible files
             continue;
         }
 

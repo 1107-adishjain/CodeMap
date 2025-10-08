@@ -48,6 +48,27 @@ const ignoreExtensions = new Set([
     '.mp3', '.mp4', '.mov', '.avi', '.wav',
 ]);
 
+// Directories to completely ignore during analysis
+const ignoreDirs = new Set([
+    '.git', 
+    'node_modules', 
+    'temp-uploads', 
+    'temp-clones',
+    '.next',           // Next.js build directory
+    'dist',           // Common build output
+    'build',          // Common build output  
+    '.nuxt',          // Nuxt.js build directory
+    'coverage',       // Test coverage
+    '.nyc_output',    // NYC coverage
+    'target',         // Rust/Java build output
+    'bin',            // Binary output
+    'obj',            // C# build output
+    '.vscode',        // VS Code settings
+    '.idea',          // IntelliJ settings
+    '__pycache__',    // Python cache
+    '.pytest_cache'   // Pytest cache
+]);
+
 const languageConfig = {
     '.js': { grammar: tsx, extractor: jsExtractor },
     '.mjs': { grammar: tsx, extractor: jsExtractor },
@@ -71,4 +92,4 @@ const languageConfig = {
     '.yml': { grammar: Yaml, extractor: yamlExtractor },
 };
 
-module.exports = { languageConfig, ignoreExtensions };
+module.exports = { languageConfig, ignoreExtensions, ignoreDirs };

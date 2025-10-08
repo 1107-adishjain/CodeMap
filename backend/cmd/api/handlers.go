@@ -26,7 +26,8 @@ func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Reques
 
 // uploadHandler handles the file upload and analysis process.
 func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
+	// Increase limit to 500MB for large codebases
+	if err := r.ParseMultipartForm(500 << 20); err != nil { // 500MB max
 		app.errorResponse(w, r, http.StatusBadRequest, "Could not parse multipart form.")
 		return
 	}
@@ -49,9 +50,18 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		app.errorResponse(w, r, http.StatusInternalServerError, "Could not create temp file.")
 		return
 	}
-	zipData, err := io.ReadAll(file)
+	// Stream file to local temp file first (better for large files)
+	_, err = io.Copy(tempFile, file)
+	tempFile.Close() // Close file before reading again
 	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, "Could not read uploaded file.")
+		app.errorResponse(w, r, http.StatusInternalServerError, "Could not save uploaded file.")
+		return
+	}
+
+	// Read file for S3 upload (now from disk, not memory)
+	zipData, err := os.ReadFile(zipPath)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, "Could not read temp file.")
 		return
 	}
 
@@ -62,13 +72,7 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write to temporary file for local processing
-	_, err = tempFile.Write(zipData)
-	tempFile.Close() // Close file before unzipping
-	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, "Could not save uploaded file.")
-		return
-	}
+	app.logger.Printf("📤 Uploaded %s to S3: %s (Size: %d bytes)", handler.Filename, s3Key, len(zipData))
 	// Unzip the file into a subdirectory
 	unzipDest := filepath.Join(tempDir, "unzipped")
 	if err := unzip(zipPath, unzipDest); err != nil {
@@ -117,17 +121,36 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upload GitHub repo to S3
-	s3Key, err := app.s3.UploadGitRepo(payload.RepoURL)
+	// Upload GitHub repo to S3 and get the local temp directory path
+	s3Key, tempDir, err := app.s3.UploadGitRepo(payload.RepoURL)
 	if err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to clone and upload repository: %v", err))
 		return
 	}
 
+	// Clean up temp directory after we're done
+	defer os.RemoveAll(tempDir)
+
+	app.logger.Printf("📤 Uploaded GitHub repo to S3: %s", s3Key)
+
+	// Run analysis on the cloned repository
+	analysisResult, err := analysis.Run(app.config.ToolsPath, tempDir)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	// Import analysis results into Neo4j
+	if err := app.db.ImportAnalysis(r.Context(), analysisResult); err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import analysis to Neo4j: %v", err))
+		return
+	}
+
 	app.writeJSON(w, http.StatusAccepted, map[string]string{
-		"message":  "GitHub repository has been cloned and uploaded to S3 successfully.",
-		"s3_key":   s3Key,
-		"repo_url": payload.RepoURL,
+		"message":        "GitHub repository analyzed and imported to Neo4j successfully.",
+		"s3_key":         s3Key,
+		"repo_url":       payload.RepoURL,
+		"files_analyzed": fmt.Sprintf("%d", len(analysisResult.Files)),
 	})
 }
 
@@ -216,6 +239,42 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 // logError is a helper for logging errors.
 func (app *application) logError(r *http.Request, err error) {
 	app.logger.Println(err)
+}
+
+// debugNeo4jHandler shows Neo4j database status and content.
+func (app *application) debugNeo4jHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	// Check node counts
+	nodeResults, err := app.db.Query(ctx, "MATCH (n) RETURN labels(n)[0] as type, count(n) as count ORDER BY count DESC", map[string]any{})
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query nodes: %v", err))
+		return
+	}
+
+	// Check relationship counts
+	relResults, err := app.db.Query(ctx, "MATCH ()-[r]->() RETURN type(r) as type, count(r) as count ORDER BY count DESC", map[string]any{})
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query relationships: %v", err))
+		return
+	}
+
+	// Get sample data
+	sampleResults, err := app.db.Query(ctx, "MATCH (n) RETURN n LIMIT 5", map[string]any{})
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query samples: %v", err))
+		return
+	}
+
+	debugInfo := map[string]any{
+		"neo4j_status":        "connected",
+		"node_counts":         nodeResults,
+		"relationship_counts": relResults,
+		"sample_nodes":        sampleResults,
+		"timestamp":           time.Now().Format(time.RFC3339),
+	}
+
+	app.writeJSON(w, http.StatusOK, debugInfo)
 }
 
 // unzip function to extract a zip archive.
