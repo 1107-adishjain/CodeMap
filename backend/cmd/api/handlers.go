@@ -206,14 +206,12 @@ func (app *application) queryHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// --- THE ONLY CHANGE IS HERE ---
 	// The handler now calls the database method, keeping the logic separate.
 	results, err := app.db.Query(ctx, payload.Query, payload.Params)
 	if err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to execute query: %v", err))
 		return
 	}
-	// -----------------------------
 
 	// Send the results back as JSON.
 	app.writeJSON(w, http.StatusOK, results)
