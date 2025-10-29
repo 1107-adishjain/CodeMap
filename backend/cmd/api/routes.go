@@ -1,6 +1,9 @@
 package main
 
 import (
+	controller "codemap/backend/internal/controller"
+	mw "codemap/backend/internal/middleware"
+	"database/sql"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -8,7 +11,7 @@ import (
 	"github.com/go-chi/cors"
 )
 
-func (app *application) routes() http.Handler {
+func (app *application) routes(db *sql.DB) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
@@ -25,13 +28,17 @@ func (app *application) routes() http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by browsers
 	}))
-
+	r.Post("/api/v1/signup", controller.SignUp(db))
+	r.Post("/api/v1/login", controller.Login(db))
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/healthcheck", app.healthCheckHandler)
+		r.Use(mw.Authenticate)
 		r.Post("/upload", app.uploadHandler)
 		r.Post("/github", app.githubHandler)
-		r.Post("/query", app.queryHandler)		
+		r.Post("/query", app.queryHandler)
 	})
 	return r
 }
+
+// ...existing code...
