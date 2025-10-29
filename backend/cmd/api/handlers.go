@@ -202,42 +202,6 @@ func (app *application) logError(r *http.Request, err error) {
 	app.logger.Println(err)
 }
 
-// debugNeo4jHandler shows Neo4j database status and content.
-func (app *application) debugNeo4jHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-
-	// Check node counts
-	nodeResults, err := app.db.Query(ctx, "MATCH (n) RETURN labels(n)[0] as type, count(n) as count ORDER BY count DESC", map[string]any{})
-	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query nodes: %v", err))
-		return
-	}
-
-	// Check relationship counts
-	relResults, err := app.db.Query(ctx, "MATCH ()-[r]->() RETURN type(r) as type, count(r) as count ORDER BY count DESC", map[string]any{})
-	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query relationships: %v", err))
-		return
-	}
-
-	// Get sample data
-	sampleResults, err := app.db.Query(ctx, "MATCH (n) RETURN n LIMIT 5", map[string]any{})
-	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to query samples: %v", err))
-		return
-	}
-
-	debugInfo := map[string]any{
-		"neo4j_status":        "connected",
-		"node_counts":         nodeResults,
-		"relationship_counts": relResults,
-		"sample_nodes":        sampleResults,
-		"timestamp":           time.Now().Format(time.RFC3339),
-	}
-
-	app.writeJSON(w, http.StatusOK, debugInfo)
-}
-
 // unzip function to extract a zip archive.
 func unzip(src, dest string) error {
 	r, err := zip.OpenReader(src)
