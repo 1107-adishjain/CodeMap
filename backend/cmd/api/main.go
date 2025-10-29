@@ -34,13 +34,21 @@ func main() {
 
 	cfg := config.Load()
 
-	db, err := database.NewDB(cfg)
+	dbNeo4j, err := database.NewDB(cfg)
 	if err != nil {
 		logger.Fatalf("Could not connect to database: %v", err)
 	} else {
 		logger.Println("connected to database")
 	}
-	defer db.Close(context.Background())
+	defer dbNeo4j.Close(context.Background())
+
+	db, err := database.DBinit(cfg.PostgresUrl)
+	if err !=nil {
+		logger.Fatalf("Could not connect to Postgres database: %v", err)
+	}else{
+		logger.Println("connected to Postgres database")
+	}
+	defer database.DBclose(db)
 
 	s3Service, err := s3.NewS3Service(cfg.S3Region, cfg.AWSAccessKey, cfg.AWSSecretKey, cfg.S3Bucket)
 	if err != nil {
@@ -51,14 +59,14 @@ func main() {
 
 	app := &application{
 		config: cfg,
-		db:     db,
+		db:     dbNeo4j,
 		logger: logger,
 		s3:     s3Service,
 	}
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
-		Handler:      app.routes(),
+		Handler:      app.routes(db),
 		ErrorLog:     log.New(logger.Writer(), "", 0),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,

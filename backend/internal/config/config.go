@@ -15,6 +15,7 @@ type AppConfig struct {
 	S3Region     string
 	AWSAccessKey string
 	AWSSecretKey string
+	PostgresUrl  string
 }
 
 // getEnv reads an environment variable or returns a default value.
@@ -38,5 +39,6 @@ func Load() *AppConfig {
 		S3Region:     getEnv("S3_REGION", "your-region"),
 		AWSAccessKey: getEnv("AWS_ACCESS_KEY", ""),
 		AWSSecretKey: getEnv("AWS_SECRET_KEY", ""),
+		PostgresUrl:  getEnv("POSTGRES_URL", ""),
 	}
 }
