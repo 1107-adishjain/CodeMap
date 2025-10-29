@@ -32,8 +32,8 @@ func (app *application) routes(db *sql.DB) http.Handler {
 	r.Post("/api/v1/login", controller.Login(db))
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/healthcheck", app.healthCheckHandler)
 		r.Use(mw.Authenticate)
+		r.Get("/healthcheck", app.healthCheckHandler)
 		r.Post("/upload", app.uploadHandler)
 		r.Post("/github", app.githubHandler)
 		r.Post("/query", app.queryHandler)
