@@ -37,12 +37,16 @@ func main() {
 	db, err := database.NewDB(cfg)
 	if err != nil {
 		logger.Fatalf("Could not connect to database: %v", err)
+	} else {
+		logger.Println("connected to database")
 	}
 	defer db.Close(context.Background())
 
 	s3Service, err := s3.NewS3Service(cfg.S3Region, cfg.AWSAccessKey, cfg.AWSSecretKey, cfg.S3Bucket)
 	if err != nil {
 		logger.Fatalf("Could not initialize S3 service: %v", err)
+	} else {
+		logger.Println("S3 succesfully initalized")
 	}
 
 	app := &application{

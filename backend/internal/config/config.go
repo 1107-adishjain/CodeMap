@@ -4,7 +4,6 @@ import (
 	"os"
 )
 
-// AppConfig holds the application configuration.
 type AppConfig struct {
 	Port         string
 	Neo4jURI     string

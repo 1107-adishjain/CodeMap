@@ -1,14 +1,12 @@
 package s3
 
 import (
-	"archive/zip"
 	"bytes"
+	"codemap/backend/internal/helper"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -70,7 +68,7 @@ func (s *Service) UploadGitRepo(repoURL string) (string, string, error) {
 	// NOTE: No defer cleanup - caller must handle cleanup
 
 	// Extract repo name from URL
-	repoName := extractRepoName(repoURL)
+	repoName := helper.ExtractRepoName(repoURL)
 	cloneDir := filepath.Join(tempDir, repoName)
 
 	// Clone the repository
@@ -81,7 +79,7 @@ func (s *Service) UploadGitRepo(repoURL string) (string, string, error) {
 
 	// Create zip file
 	zipPath := filepath.Join(tempDir, repoName+".zip")
-	if err := createZipFromDir(cloneDir, zipPath); err != nil {
+	if err := helper.CreateZipFromDir(cloneDir, zipPath); err != nil {
 		return "", "", fmt.Errorf("failed to create zip: %w", err)
 	}
 
@@ -108,82 +106,4 @@ func (s *Service) UploadGitRepo(repoURL string) (string, string, error) {
 
 	// Return S3 key and clone directory path (caller must cleanup tempDir)
 	return key, cloneDir, nil
-}
-
-// extractRepoName extracts repository name from GitHub URL
-func extractRepoName(repoURL string) string {
-	// Remove .git suffix if present
-	repoURL = strings.TrimSuffix(repoURL, ".git")
-
-	// Split by "/" and get the last part
-	parts := strings.Split(repoURL, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return "unknown-repo"
-}
-
-// createZipFromDir creates a zip file from a directory
-func createZipFromDir(sourceDir, zipPath string) error {
-	zipFile, err := os.Create(zipPath)
-	if err != nil {
-		return err
-	}
-	defer zipFile.Close()
-
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
-
-	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip .git directory
-		if strings.Contains(path, ".git") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		// Get relative path
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return err
-		}
-
-		// Skip root directory
-		if relPath == "." {
-			return nil
-		}
-
-		// Create zip entry
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return err
-		}
-		header.Name = filepath.ToSlash(relPath)
-
-		if info.IsDir() {
-			header.Name += "/"
-			_, err := zipWriter.CreateHeader(header)
-			return err
-		}
-
-		// Write file content
-		writer, err := zipWriter.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		_, err = io.Copy(writer, file)
-		return err
-	})
 }

@@ -17,10 +17,10 @@ type File struct {
 
 // Class represents a class definition.
 type Class struct {
-	Name        string   `json:"name"`
-	IsExported  bool     `json:"is_exported"`
-	Properties  []string `json:"properties,omitempty"`
-	Methods     []string `json:"methods,omitempty"`
+	Name       string   `json:"name"`
+	IsExported bool     `json:"is_exported"`
+	Properties []string `json:"properties,omitempty"`
+	Methods    []string `json:"methods,omitempty"`
 }
 
 // Function represents a function or method.

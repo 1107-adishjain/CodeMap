@@ -154,43 +154,6 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// analyzeLocalHandler processes a local directory without requiring upload.
-func (app *application) analyzeLocalHandler(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		Path string `json:"path"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		app.errorResponse(w, r, http.StatusBadRequest, "Invalid JSON payload")
-		return
-	}
-	if payload.Path == "" {
-		app.errorResponse(w, r, http.StatusBadRequest, "Path is required")
-		return
-	}
-	// Check if the directory exists
-	if _, err := os.Stat(payload.Path); os.IsNotExist(err) {
-		app.errorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("Directory does not exist: %s", payload.Path))
-		return
-	}
-	// Run analysis directly on the local directory
-	analysisResult, err := analysis.Run(app.config.ToolsPath, payload.Path)
-	if err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, err.Error())
-		return
-	}
-	// Import to Neo4j
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	if err := app.db.ImportAnalysis(ctx, analysisResult); err != nil {
-		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import data to Neo4j: %v", err))
-		return
-	}
-	app.writeJSON(w, http.StatusOK, map[string]string{
-		"message":       "Local directory analyzed and imported successfully.",
-		"analyzed_path": payload.Path,
-	})
-}
-
 // queryHandler accepts a POST request with a Cypher query and returns the result.
 func (app *application) queryHandler(w http.ResponseWriter, r *http.Request) {
 	var payload struct {

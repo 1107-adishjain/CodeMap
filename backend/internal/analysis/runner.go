@@ -30,12 +30,6 @@ func Run(toolsPath string, targetDir string) (*models.Analysis, error) {
 	err = json.Unmarshal(output, &analysisResult)
 	if err != nil {
 		fmt.Printf("❌ JSON UNMARSHAL FAILED: %v\n", err)
-		// Show first 500 characters of output for debugging
-		if len(output) > 500 {
-			fmt.Printf("❌ RAW OUTPUT (first 500 chars): %s...\n", string(output[:500]))
-		} else {
-			fmt.Printf("❌ RAW OUTPUT: %s\n", string(output))
-		}
 		return nil, fmt.Errorf("failed to unmarshal analysis result: %w", err)
 	}
 

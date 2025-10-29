@@ -27,14 +27,12 @@ func (app *application) routes() http.Handler {
 	}))
 
 	// API v1 routes
-	r.Route("/v1", func(r chi.Router) {
+	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/healthcheck", app.healthCheckHandler)
 		r.Post("/upload", app.uploadHandler)
 		r.Post("/github", app.githubHandler)
-		r.Post("/analyze-local", app.analyzeLocalHandler)
 		r.Post("/query", app.queryHandler)
 		r.Get("/debug/neo4j", app.debugNeo4jHandler)
 	})
-
 	return r
 }
