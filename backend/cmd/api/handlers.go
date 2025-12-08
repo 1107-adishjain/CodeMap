@@ -26,7 +26,6 @@ func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Reques
 
 // uploadHandler handles the file upload and analysis process.
 func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
-	// Increase limit to 500MB for large codebases
 	if err := r.ParseMultipartForm(500 << 20); err != nil { // 500MB max
 		app.errorResponse(w, r, http.StatusBadRequest, "Could not parse multipart form.")
 		return
@@ -73,7 +72,6 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app.logger.Printf("📤 Uploaded %s to S3: %s (Size: %d bytes)", handler.Filename, s3Key, len(zipData))
-	// Unzip the file into a subdirectory
 	unzipDest := filepath.Join(tempDir, "unzipped")
 	if err := unzip(zipPath, unzipDest); err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to unzip file: %v", err))

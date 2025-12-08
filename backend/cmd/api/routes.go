@@ -40,5 +40,3 @@ func (app *application) routes(db *sql.DB) http.Handler {
 	})
 	return r
 }
-
-// ...existing code...

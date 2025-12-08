@@ -65,7 +65,6 @@ func (s *Service) UploadGitRepo(repoURL string) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	// NOTE: No defer cleanup - caller must handle cleanup
 
 	// Extract repo name from URL
 	repoName := helper.ExtractRepoName(repoURL)
