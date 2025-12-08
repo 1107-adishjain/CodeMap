@@ -21,12 +21,12 @@ func (app *application) routes(db *sql.DB) http.Handler {
 
 	// CORS settings
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // frontend origin
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by browsers
+		MaxAge:           300,
 	}))
 	r.Post("/api/v1/signup", controller.SignUp(db))
 	r.Post("/api/v1/login", controller.Login(db))

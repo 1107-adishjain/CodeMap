@@ -51,7 +51,7 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Stream file to local temp file first (better for large files)
 	_, err = io.Copy(tempFile, file)
-	tempFile.Close() // Close file before reading again
+	tempFile.Close() 
 	if err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, "Could not save uploaded file.")
 		return
@@ -97,7 +97,6 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// githubHandler handles GitHub repository URL submission for analysis.
 func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		RepoURL string `json:"repo_url"`
@@ -113,7 +112,6 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate GitHub URL format
 	if !strings.Contains(payload.RepoURL, "github.com") {
 		app.errorResponse(w, r, http.StatusBadRequest, "Please provide a valid GitHub repository URL")
 		return
@@ -126,24 +124,21 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clean up temp directory after we're done
+	// Clean up temp directory after we are done
 	defer os.RemoveAll(tempDir)
 
 	app.logger.Printf("📤 Uploaded GitHub repo to S3: %s", s3Key)
 
-	// Run analysis on the cloned repository
 	analysisResult, err := analysis.Run(app.config.ToolsPath, tempDir)
 	if err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
-
 	// Import analysis results into Neo4j
 	if err := app.db.ImportAnalysis(r.Context(), analysisResult); err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import analysis to Neo4j: %v", err))
 		return
 	}
-
 	app.writeJSON(w, http.StatusAccepted, map[string]string{
 		"message":        "GitHub repository analyzed and imported to Neo4j successfully.",
 		"s3_key":         s3Key,
