@@ -41,11 +41,10 @@ func (db *DB) Query(ctx context.Context, cypher string, params map[string]any) (
 }
 
 // ImportAnalysis imports the entire analysis result into Neo4j within a single transaction.
-func (db *DB) ImportAnalysis(ctx context.Context, analysisData *models.Analysis) error {
+func (db *DB) ImportAnalysis(ctx context.Context, analysisData *models.Analysis, projectID, projectName string) error {
 	session := db.Driver.NewSession(ctx, neo4j.SessionConfig{DatabaseName: "neo4j"})
 	defer session.Close(ctx)
 
-	// DEBUGGING: Print analysis data info
 	fmt.Printf("🔍 IMPORTING ANALYSIS: %d files found\n", len(analysisData.Files))
 	for i, file := range analysisData.Files {
 		fmt.Printf("  File %d: %s (%s) - %d classes, %d functions\n",
@@ -56,17 +55,49 @@ func (db *DB) ImportAnalysis(ctx context.Context, analysisData *models.Analysis)
 	}
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
-		// First, clear the existing database to ensure a fresh import
-		fmt.Println("🗑️  Clearing existing database...")
-		if _, err := tx.Run(ctx, "MATCH (n) DETACH DELETE n", nil); err != nil {
+		// Create Project node
+		_, err := tx.Run(ctx,
+			"MERGE (p:Project {id: $id, name: $name, created_at: datetime()})",
+			map[string]any{"id": projectID, "name": projectName},
+		)
+		if err != nil {
 			return nil, err
 		}
-		fmt.Println("✅ Database cleared successfully")
 
-		// Create all nodes
+		// Create all nodes and link to Project
 		for _, file := range analysisData.Files {
 			if err := helper.CreateNodesForFile(ctx, tx, file); err != nil {
 				return nil, fmt.Errorf("failed to create nodes for file %s: %w", file.Path, err)
+			}
+			// Link File node to Project
+			_, err := tx.Run(ctx,
+				"MATCH (f:File {path: $path}), (p:Project {id: $id}) MERGE (f)-[:BELONGS_TO]->(p)",
+				map[string]any{"path": file.Path, "id": projectID},
+			)
+			if err != nil {
+				return nil, err
+			}
+			// Link Class nodes to Project
+			for _, class := range file.Classes {
+				classId := fmt.Sprintf("%s#%s", file.Path, class.Name)
+				_, err := tx.Run(ctx,
+					"MATCH (c:Class {id: $classId}), (p:Project {id: $id}) MERGE (c)-[:BELONGS_TO]->(p)",
+					map[string]any{"classId": classId, "id": projectID},
+				)
+				if err != nil {
+					return nil, err
+				}
+			}
+			// Link Function nodes to Project
+			for _, function := range file.Functions {
+				funcId := fmt.Sprintf("%s#%s", file.Path, function.Name)
+				_, err := tx.Run(ctx,
+					"MATCH (fn:Function {id: $funcId}), (p:Project {id: $id}) MERGE (fn)-[:BELONGS_TO]->(p)",
+					map[string]any{"funcId": funcId, "id": projectID},
+				)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -83,6 +114,6 @@ func (db *DB) ImportAnalysis(ctx context.Context, analysisData *models.Analysis)
 		return fmt.Errorf("failed to execute import transaction: %w", err)
 	}
 
-	fmt.Println("Successfully imported analysis into Neo4j.")
+	fmt.Println("Successfully imported analysis into Neo4j and linked to project.")
 	return nil
 }

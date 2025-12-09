@@ -43,9 +43,9 @@ func main() {
 	defer dbNeo4j.Close(context.Background())
 
 	db, err := database.DBinit(cfg.PostgresUrl)
-	if err !=nil {
+	if err != nil {
 		logger.Fatalf("Could not connect to Postgres database: %v", err)
-	}else{
+	} else {
 		logger.Println("connected to Postgres database")
 	}
 	defer database.DBclose(db)

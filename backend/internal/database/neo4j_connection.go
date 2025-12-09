@@ -8,11 +8,6 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
-// DB represents the Neo4j database connection.
-type DB struct {
-	Driver neo4j.DriverWithContext
-}
-
 func NewDB(cfg *config.AppConfig) (*DB, error) {
 	driver, err := neo4j.NewDriverWithContext(
 		cfg.Neo4jURI,

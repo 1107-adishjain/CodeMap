@@ -9,7 +9,7 @@ import (
 
 type contextKey string
 
-const userIDKey contextKey = "userID"
+const userIDKey contextKey = "user_ID"
 
 func Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

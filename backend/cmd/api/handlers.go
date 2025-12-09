@@ -51,7 +51,7 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Stream file to local temp file first (better for large files)
 	_, err = io.Copy(tempFile, file)
-	tempFile.Close() 
+	tempFile.Close()
 	if err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, "Could not save uploaded file.")
 		return
@@ -70,7 +70,18 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to upload to S3: %v", err))
 		return
 	}
+	// add the logic of adding the project in the database after successful upload to s3
+	userID, ok := r.Context().Value("user_ID").(string)
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
 
+	projectID, err := app.db.CreateProject(userID, handler.Filename, s3Key)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to add project to database: %v", err))
+		return
+	}
 	app.logger.Printf("📤 Uploaded %s to S3: %s (Size: %d bytes)", handler.Filename, s3Key, len(zipData))
 	unzipDest := filepath.Join(tempDir, "unzipped")
 	if err := unzip(zipPath, unzipDest); err != nil {
@@ -86,10 +97,17 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Import the result into Neo4j
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // 5-minute timeout for import
 	defer cancel()
-	if err := app.db.ImportAnalysis(ctx, analysisResult); err != nil {
+	if err := app.db.ImportAnalysis(ctx, analysisResult, projectID, handler.Filename); err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import data to Neo4j: %v", err))
 		return
 	}
+	// update project status to 'completed'
+	if err := app.db.UpdateProjectStatus(projectID, "completed"); err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to update project status: %v", err))
+		return
+	}
+	app.logger.Printf("✅ Analysis and import completed for project ID: %s", projectID)
+
 	// Send a success response
 	app.writeJSON(w, http.StatusAccepted, map[string]string{
 		"message": "Upload successful. Codebase has been analyzed and imported.",
@@ -123,7 +141,18 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to clone and upload repository: %v", err))
 		return
 	}
+	userID, ok := r.Context().Value("user_ID").(string)
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
 
+	repoName := extractRepoName(payload.RepoURL)
+	projectID, err := app.db.CreateProject(userID, repoName, s3Key)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to add project to database: %v", err))
+		return
+	}
 	// Clean up temp directory after we are done
 	defer os.RemoveAll(tempDir)
 
@@ -135,10 +164,19 @@ func (app *application) githubHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Import analysis results into Neo4j
-	if err := app.db.ImportAnalysis(r.Context(), analysisResult); err != nil {
+	if err := app.db.ImportAnalysis(r.Context(), analysisResult, projectID, repoName); err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import analysis to Neo4j: %v", err))
 		return
 	}
+
+	// update project status to 'completed'
+	if err := app.db.UpdateProjectStatus(projectID, "completed"); err != nil {
+		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to update project status: %v", err))
+		return
+	}
+	app.logger.Printf("✅ Analysis and import completed for project ID: %s", projectID)
+
+	// Send success response
 	app.writeJSON(w, http.StatusAccepted, map[string]string{
 		"message":        "GitHub repository analyzed and imported to Neo4j successfully.",
 		"s3_key":         s3Key,
@@ -231,4 +269,13 @@ func unzip(src, dest string) error {
 		}
 	}
 	return nil
+}
+
+// extractRepoName extracts the repository name from a GitHub URL.
+func extractRepoName(repoURL string) string {
+	parts := strings.Split(strings.TrimSuffix(repoURL, ".git"), "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return repoURL
 }
