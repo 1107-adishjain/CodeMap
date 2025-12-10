@@ -14,9 +14,9 @@ export default function Hero() {
             Transform your codebase into interactive visual maps. Analyze relationships, understand dependencies,<br /> and explore your software architecture like never before
           </p>
 
+
           <div><Link href="/dashboard">
             <button className="mt-6 px-10 py-5 bg-teal-500 text-2xl hover:bg-teal-600 text-white rounded-lg shadow-md transition duration-300 mr-4">
-
               Start Analyze Code</button>
           </Link>
 
