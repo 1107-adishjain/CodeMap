@@ -60,7 +60,7 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/v1/github", {
+      const res = await fetch("http://localhost:8080/api/v1/github", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
