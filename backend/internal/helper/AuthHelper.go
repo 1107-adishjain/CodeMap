@@ -12,8 +12,8 @@ import (
 var jwtSecretKey = []byte(os.Getenv("JWT_SECRET"))
 
 type Claims struct {
-	Email string `json:"email"`
-	UserID string`json:"id"`
+	Email  string `json:"email"`
+	UserID string `json:"id"`
 	// add other fields like UserID if needed
 	jwt.RegisteredClaims
 }
@@ -45,7 +45,7 @@ func GenerateJWT(email, userID string) (string, string, error) {
 	refreshExp := time.Now().Add(7 * 24 * time.Hour)
 
 	accessClaims := &Claims{
-		Email: email,
+		Email:  email,
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(accessExp),
@@ -58,20 +58,19 @@ func GenerateJWT(email, userID string) (string, string, error) {
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 
-	access_token_jwt := jwt.NewWithClaims(jwt.SigningMethodHS256,accessClaims)
-	refresh_token_jwt := jwt.NewWithClaims(jwt.SigningMethodHS256,refreshClaims)
+	access_token_jwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	refresh_token_jwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 
-	access_token , err := access_token_jwt.SignedString(jwtSecretKey)
-	if err!=nil{
+	access_token, err := access_token_jwt.SignedString(jwtSecretKey)
+	if err != nil {
 		return "", "", err
 	}
 	refresh_token, err := refresh_token_jwt.SignedString(jwtSecretKey)
-	if err!=nil{
+	if err != nil {
 		return "", "", err
 	}
 	return access_token, refresh_token, nil
 }
-
 
 func VerifyJWT(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
