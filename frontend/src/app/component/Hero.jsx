@@ -1,7 +1,13 @@
+"use client"
 import { Infinity } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/Authcontext";
+
 
 export default function Hero() {
+const { auth} = useAuth();
+
   return (
     <>
       <div className=" grid grid-cols-2 gap-4 w-full h-screen px-20">
@@ -14,14 +20,23 @@ export default function Hero() {
             Transform your codebase into interactive visual maps. Analyze relationships, understand dependencies,<br /> and explore your software architecture like never before
           </p>
 
+{
+  auth.loggedIn ?  <div><Link href="/dashboard">
+            <button className="mt-6 px-10 py-5 bg-teal-500 text-2xl hover:bg-red-600 text-white rounded-lg shadow-md transition duration-300 mr-4">
+              Start Analyze Code</button>
+          </Link>
+
+            <button className="mt-6 px-10 py-5 bg-gray-700 text-2xl hover:bg-teal-600 text-white rounded-lg shadow-md transition duration-300">Learn More</button>
+          </div>:
 
           <div><Link href="/dashboard">
-            <button className="mt-6 px-10 py-5 bg-teal-500 text-2xl hover:bg-teal-600 text-white rounded-lg shadow-md transition duration-300 mr-4">
+            <button disabled className=" opacity-80  mt-6 px-10 py-5 hover:bg-teal-600 bg-teal-500 text-2xl  text-white rounded-lg shadow-md transition duration-300 mr-4">
               Start Analyze Code</button>
           </Link>
 
             <button className="mt-6 px-10 py-5 bg-gray-700 text-2xl hover:bg-gray-600 text-white rounded-lg shadow-md transition duration-300">Learn More</button>
           </div>
+}
 
           <div className="mt-10 grid lg:grid-cols-3 md:cols-3 sm:grid-cols-1 gap-4">
             <div className=" p-4 rounded-lg shadow-md transition-all delay-100 duration-200 hover:scale-105 hover:shadow-teal-700 text-center">

@@ -110,20 +110,23 @@ func Login(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		// now we will pass the acess token in the response and set the refresh token in http only cookie
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
-			"user_id": userID,
-			"access_token":  access_token,
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    refresh_token,
-			HttpOnly: true,
-			Secure:   true,
-			Path:     "/",
-			MaxAge:   7 * 24 * 60 * 60, // 7 days
-			Domain:   "",
-		})
+		// Set cookie before writing body
+http.SetCookie(w, &http.Cookie{
+    Name:     "refresh_token",
+    Value:    refresh_token,
+    HttpOnly: true,
+    Secure:   true,
+    Path:     "/",
+    MaxAge:   7 * 24 * 60 * 60,
+})
+
+// Now send JSON
+w.Header().Set("Content-Type", "application/json")
+w.WriteHeader(http.StatusOK)
+json.NewEncoder(w).Encode(map[string]string{
+    "user_id": userID,
+    "access_token": access_token,
+})
+
 	})
 }

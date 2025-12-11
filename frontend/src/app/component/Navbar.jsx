@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../context/Authcontext";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -10,26 +11,27 @@ const navItems = [
 ];
 
 const Navbar = () => {
+
+  const {auth , logout} = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [mail , setmail] = useState(null);
 
   useEffect(() => {
     // Check if user is logged in
     const email = localStorage.getItem("user_email");
+    const token = localStorage.getItem("access_token");
     // const token = localStorage.getItem("access_token");
-    if (email) {
-      setUser({ email });
+    if (token) {
+      setUser(token);
+    }
+     if (email) {
+      setmail(email);
     }
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user_email");
-    // localStorage.removeItem("access_token");
-    // localStorage.removeItem("user_id");
-    setUser(null);
-    router.push("/");
-  };
+
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -59,13 +61,13 @@ const Navbar = () => {
             ))}
 
             {/* Auth Buttons or User Email */}
-            {user ? (
+            {auth.loggedIn ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm bg-green-800 px-3 py-1 rounded-full">
-                  {user.email}
+                  {mail}
                 </span>
                 <button
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors duration-300"
                 >
                   Logout
@@ -141,10 +143,10 @@ const Navbar = () => {
             ))}
 
             {/* Mobile Auth Buttons or User Email */}
-            {user ? (
+            {auth.loggedIn ? (
               <div className="space-y-2">
                 <div className="px-3 py-2 text-sm bg-green-900 rounded-md">
-                  {user.email}
+                  {mail}
                 </div>
                 <button
                   onClick={() => {

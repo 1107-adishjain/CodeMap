@@ -1,9 +1,13 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../context/Authcontext";
 
 export default function Login() {
-    const router = useRouter();
+  const { setAuth } = useAuth(); // ✅ FIXED: hook used INSIDE component
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,33 +17,37 @@ export default function Login() {
     e.preventDefault();
     setMessage("");
     setLoading(true);
+
     try {
       const res = await fetch("http://localhost:8080/api/v1/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Login failed");
       }
 
-      
+      const data = await res.json();
+      console.log("Login Response:", data);
 
+      // Save tokens
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("user_id", data.user_id);
+      localStorage.setItem("user_email", email);
 
-// localStorage.setItem("access_token", data.access_token);
-// localStorage.setItem("user_id", data.user_id);
-localStorage.setItem("user_email", email); // ✅ Add this line
+      // Update Auth Context globally
+      setAuth({
+        accessToken: data.access_token,
+        userId: data.user_id,
+        loggedIn: true,
+      });
 
-setMessage("Login successful! Redirecting...");  
-
-      if(res.ok){ 
-        
-        router.push("/")
-      }
-      if (res.status === 201) {
-  router.push("/login");
-}
+      setMessage("Login successful! Redirecting...");
+      router.push("/");
 
     } catch (err) {
       setMessage(err.message || "Something went wrong");
@@ -49,7 +57,7 @@ setMessage("Login successful! Redirecting...");
   };
 
   return (
-    <div className="w-screen h-screen flex justify-center items-center bg-transparent  bg-gradient-to-br from-green-500 to-green-800">
+    <div className="w-screen h-screen flex justify-center items-center bg-transparent bg-gradient-to-br from-green-500 to-green-800">
       <div className="bg-green-800/90 border-2 border-green-700 rounded-xl shadow-xl px-8 py-6 max-w-md w-full">
         <div className="text-center mb-6">
           <p className="text-2xl font-semibold text-white">Login</p>
