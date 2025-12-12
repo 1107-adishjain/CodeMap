@@ -113,8 +113,8 @@ func Login(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
-			"user_id":      userID,
-			"access_token": access_token,
+			"user_id": userID,
+			"access_token":  access_token,
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
