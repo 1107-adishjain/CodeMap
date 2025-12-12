@@ -9,7 +9,7 @@ import (
 
 type contextKey string
 
-const userIDKey contextKey = "user_ID"
+const UserIDKey contextKey = "user_ID"
 
 func Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +30,7 @@ func Authenticate(next http.Handler) http.Handler {
 			return
 		}
 		// Set user ID in context for downstream handlers
-		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
+		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})

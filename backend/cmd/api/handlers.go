@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"codemap/backend/internal/analysis"
+	middlewares "codemap/backend/internal/middleware"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -71,7 +72,7 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// add the logic of adding the project in the database after successful upload to s3
-	userID, ok := r.Context().Value("user_ID").(string)
+	userID, ok := r.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		app.errorResponse(w, r, http.StatusUnauthorized, "User ID not found in context")
 		return
@@ -95,7 +96,7 @@ func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Import the result into Neo4j
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // 5-minute timeout for import
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute) // 15-minute timeout for import
 	defer cancel()
 	if err := app.db.ImportAnalysis(ctx, analysisResult, projectID, handler.Filename); err != nil {
 		app.errorResponse(w, r, http.StatusInternalServerError, fmt.Sprintf("Failed to import data to Neo4j: %v", err))

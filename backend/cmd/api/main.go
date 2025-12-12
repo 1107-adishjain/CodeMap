@@ -34,6 +34,14 @@ func main() {
 
 	cfg := config.Load()
 
+	db, err := database.DBinit(cfg.PostgresUrl)
+	if err != nil {
+		logger.Fatalf("Could not connect to Postgres database: %v", err)
+	} else {
+		logger.Println("connected to Postgres database")
+	}
+	defer database.DBclose(db)
+
 	dbNeo4j, err := database.NewDB(cfg)
 	if err != nil {
 		logger.Fatalf("Could not connect to database: %v", err)
@@ -42,13 +50,8 @@ func main() {
 	}
 	defer dbNeo4j.Close(context.Background())
 
-	db, err := database.DBinit(cfg.PostgresUrl)
-	if err != nil {
-		logger.Fatalf("Could not connect to Postgres database: %v", err)
-	} else {
-		logger.Println("connected to Postgres database")
-	}
-	defer database.DBclose(db)
+	// put the Postgres connection into the Neo4j DB struct:
+	dbNeo4j.SQL=db
 
 	s3Service, err := s3.NewS3Service(cfg.S3Region, cfg.AWSAccessKey, cfg.AWSSecretKey, cfg.S3Bucket)
 	if err != nil {
