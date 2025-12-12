@@ -1,15 +1,18 @@
 "use client";
 import Navbar from "../component/Navbar";
 import QueryDashboard from "../component/QueryDashboard";
-import { useState } from "react";
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [file, setFile] = useState(null);
   const [githubUrl, setGithubUrl] = useState("");
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("upload"); // "upload" or "query"
   const [uploadType, setUploadType] = useState("zip"); // "zip" or "github"
   const [loading, setLoading] = useState(false);
+  const [token , setToken] = useState("")
 
   const handleFileChange = (event) => {
     if (event.target.files && event.target.files[0]) {
@@ -17,7 +20,27 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setToken(localStorage.getItem("access_token") || "");
+    }
+  }, []);
+
+  const safeParse = async (res) => {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { error: text || "Unknown error" };
+    }
+  };
+
   const handleZipUpload = async () => {
+    if (!token) {
+      setMessage("Please log in to upload.");
+      router.push("/Login");
+      return;
+    }
     if (!file) {
       setMessage("Please select a file first.");
       return;
@@ -28,12 +51,14 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("codebase", file);
 
-      const res = await fetch("http://localhost:8080/v1/upload", {
+      const res = await fetch("http://localhost:8080/api/v1/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
+        credentials: "include",
       });
 
-      const data = await res.json();
+      const data = await safeParse(res);
 
       if (!res.ok) {
         setMessage("Error: " + (data.error || "Upload failed"));
@@ -52,7 +77,6 @@ export default function Dashboard() {
       setMessage("Please enter a GitHub repository URL.");
       return;
     }
-
     if (!githubUrl.includes("github.com")) {
       setMessage("Please enter a valid GitHub repository URL.");
       return;
@@ -62,15 +86,11 @@ export default function Dashboard() {
     try {
       const res = await fetch("http://localhost:8080/api/v1/github", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          repo_url: githubUrl,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo_url: githubUrl }),
       });
 
-      const data = await res.json();
+      const data = await safeParse(res);
 
       if (!res.ok) {
         setMessage("Error: " + (data.error || "GitHub upload failed"));
