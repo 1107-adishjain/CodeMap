@@ -27,7 +27,7 @@ func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Reques
 
 // uploadHandler handles the file upload and analysis process.
 func (app *application) uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(500 << 20); err != nil { // 500MB max
+	if err := r.ParseMultipartForm(300 << 20); err != nil { // 300MB max
 		app.errorResponse(w, r, http.StatusBadRequest, "Could not parse multipart form.")
 		return
 	}
