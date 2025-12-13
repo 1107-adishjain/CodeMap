@@ -30,6 +30,7 @@ func (app *application) routes(db *sql.DB) http.Handler {
 		MaxAge:           300,
 	}))
 	r.Use(httprate.LimitByIP(100, 1*time.Minute)) //means allow 100 requests per minute per IP
+	r.Use(middleware.Timeout(15 * time.Minute))
 	r.Use(middleware.Compress(5))
 
 	r.Post("/api/v1/signup", controller.SignUp(db))
